@@ -1,0 +1,18 @@
+{
+  "name": "shizuku-web-terminal",
+  "version": "1.0.0",
+  "description": "Shizuku ADB Web Terminal Dashboard",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": [
+    "shizuku",
+    "adb",
+    "android",
+    "web-terminal",
+    "termux"
+  ],
+  "author": "prajwalg5230",
+  "license": "MIT"
+}

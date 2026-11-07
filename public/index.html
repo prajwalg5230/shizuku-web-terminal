@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Shizuku ADB Web Terminal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #080c16;
+      --bg-card: rgba(16, 24, 40, 0.85);
+      --bg-card-hover: rgba(24, 36, 60, 0.95);
+      --border-color: rgba(64, 120, 255, 0.2);
+      --border-active: rgba(0, 242, 254, 0.5);
+      --accent-cyan: #00f2fe;
+      --accent-blue: #4facfe;
+      --accent-green: #00f5a0;
+      --accent-green-glow: rgba(0, 245, 160, 0.35);
+      --accent-amber: #f6d365;
+      --accent-amber-glow: rgba(246, 211, 101, 0.35);
+      --accent-red: #ff4b72;
+      --text-main: #f0f4fc;
+      --text-muted: #8ca0ba;
+      --terminal-bg: #040711;
+      --font-ui: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-code: 'Fira Code', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      background: var(--bg-dark);
+      background-image: 
+        radial-gradient(circle at 10% 10%, rgba(0, 242, 254, 0.12) 0%, transparent 45%),
+        radial-gradient(circle at 90% 90%, rgba(0, 245, 160, 0.1) 0%, transparent 45%);
+      color: var(--text-main);
+      font-family: var(--font-ui);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      padding: 16px;
+      overflow-x: hidden;
+    }
+
+    .container {
+      max-width: 920px;
+      margin: 0 auto;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* HEADER */
+    header {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      backdrop-filter: blur(16px);
+      border-radius: 16px;
+      padding: 16px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-icon {
+      width: 44px;
+      height: 44px;
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue));
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      box-shadow: 0 0 18px rgba(0, 242, 254, 0.4);
+    }
+
+    .brand-title {
+      font-size: 1.25rem;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      background: linear-gradient(135deg, #fff 30%, var(--accent-cyan));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .brand-subtitle {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-family: var(--font-code);
+    }
+
+    /* STATUS BADGE */
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 16px;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      font-family: var(--font-code);
+      border: 1px solid transparent;
+      transition: all 0.3s ease;
+    }
+
+    .status-badge.authorized {
+      background: rgba(0, 245, 160, 0.12);
+      border-color: rgba(0, 245, 160, 0.4);
+      color: var(--accent-green);
+      box-shadow: 0 0 16px var(--accent-green-glow);
+    }
+
+    .status-badge.pending {
+      background: rgba(246, 211, 101, 0.12);
+      border-color: rgba(246, 211, 101, 0.4);
+      color: var(--accent-amber);
+      box-shadow: 0 0 16px var(--accent-amber-glow);
+    }
+
+    .status-badge.offline {
+      background: rgba(255, 75, 114, 0.12);
+      border-color: rgba(255, 75, 114, 0.4);
+      color: var(--accent-red);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: currentColor;
+      box-shadow: 0 0 8px currentColor;
+      animation: pulse 1.8s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.35; transform: scale(0.8); }
+    }
+
+    /* BANNER HERO CARD */
+    .hero-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+      transition: all 0.3s ease;
+    }
+
+    .hero-card.pending {
+      border-color: rgba(246, 211, 101, 0.4);
+      background: linear-gradient(135deg, rgba(246, 211, 101, 0.08), rgba(16, 24, 40, 0.9));
+    }
+
+    .hero-card.authorized {
+      border-color: rgba(0, 245, 160, 0.4);
+      background: linear-gradient(135deg, rgba(0, 245, 160, 0.08), rgba(16, 24, 40, 0.9));
+    }
+
+    .hero-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+    }
+
+    .hero-icon {
+      font-size: 1.8rem;
+      background: rgba(0, 242, 254, 0.1);
+      border: 1px solid rgba(0, 242, 254, 0.25);
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .hero-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 4px;
+    }
+
+    .hero-desc {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    /* STEP BOX FOR SHIZUKU */
+    .steps-box {
+      background: rgba(8, 12, 22, 0.7);
+      border: 1px solid rgba(246, 211, 101, 0.25);
+      border-radius: 12px;
+      padding: 14px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .steps-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--accent-amber);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .steps-list {
+      list-style-type: none;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 0.82rem;
+      color: var(--text-main);
+    }
+
+    .steps-list li {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .step-num {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: rgba(246, 211, 101, 0.2);
+      color: var(--accent-amber);
+      font-weight: 700;
+      font-size: 0.75rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+
+    /* BUTTONS */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 11px 20px;
+      border-radius: 10px;
+      font-size: 0.88rem;
+      font-weight: 700;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s ease;
+      font-family: var(--font-ui);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue));
+      color: #040711;
+      box-shadow: 0 4px 18px rgba(0, 242, 254, 0.35);
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 24px rgba(0, 242, 254, 0.5);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text-main);
+      border: 1px solid var(--border-color);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.12);
+      border-color: var(--border-active);
+    }
+
+    .btn-sm {
+      padding: 6px 12px;
+      font-size: 0.78rem;
+      border-radius: 8px;
+    }
+
+    /* QUICK ACTIONS */
+    .section-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--accent-cyan);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .quick-chips-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 8px;
+    }
+
+    .chip-btn {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--text-main);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+      text-align: left;
+    }
+
+    .chip-btn:hover {
+      border-color: var(--accent-cyan);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 14px rgba(0, 242, 254, 0.15);
+    }
+
+    .chip-btn .icon {
+      font-size: 1.1rem;
+    }
+
+    /* TERMINAL CARD */
+    .terminal-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5);
+    }
+
+    .terminal-header {
+      background: #060a14;
+      padding: 12px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .terminal-controls {
+      display: flex;
+      gap: 8px;
+    }
+
+    .terminal-dot {
+      width: 11px;
+      height: 11px;
+      border-radius: 50%;
+    }
+
+    .dot-red { background: #ff5f56; }
+    .dot-yellow { background: #ffbd2e; }
+    .dot-green { background: #27c93f; }
+
+    .terminal-mode {
+      font-family: var(--font-code);
+      font-size: 0.78rem;
+      color: var(--accent-cyan);
+      font-weight: 600;
+    }
+
+    .terminal-tools {
+      display: flex;
+      gap: 8px;
+    }
+
+    /* TERMINAL OUTPUT */
+    .terminal-screen {
+      background: var(--terminal-bg);
+      padding: 16px;
+      min-height: 280px;
+      max-height: 440px;
+      overflow-y: auto;
+      font-family: var(--font-code);
+      font-size: 0.85rem;
+      line-height: 1.6;
+      color: #e2e8f0;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    .term-line {
+      margin-bottom: 4px;
+    }
+
+    .term-cmd { color: var(--accent-cyan); font-weight: 600; }
+    .term-success { color: var(--accent-green); }
+    .term-error { color: var(--accent-red); }
+    .term-info { color: var(--text-muted); }
+
+    /* TERMINAL INPUT */
+    .terminal-input-bar {
+      background: #060a14;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-top: 1px solid var(--border-color);
+    }
+
+    .prompt-prefix {
+      font-family: var(--font-code);
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--accent-green);
+      white-space: nowrap;
+    }
+
+    .cmd-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      font-family: var(--font-code);
+      font-size: 0.92rem;
+      color: #fff;
+    }
+
+    .cmd-input::placeholder {
+      color: rgba(255, 255, 255, 0.25);
+    }
+
+    /* TOAST */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: rgba(16, 24, 40, 0.96);
+      border: 1px solid var(--accent-cyan);
+      padding: 12px 20px;
+      border-radius: 12px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+      font-size: 0.85rem;
+      z-index: 1000;
+      display: none;
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    footer {
+      text-align: center;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 10px;
+      font-family: var(--font-code);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <!-- HEADER -->
+    <header>
+      <div class="brand">
+        <div class="brand-icon">⚡</div>
+        <div>
+          <h1 class="brand-title">Shizuku Web Terminal</h1>
+          <p class="brand-subtitle">Rootless Elevated ADB Execution on Android</p>
+        </div>
+      </div>
+      <div id="statusBadge" class="status-badge pending">
+        <div class="status-dot"></div>
+        <span id="statusText">Checking Shizuku...</span>
+      </div>
+    </header>
+
+    <!-- BANNER HERO CARD -->
+    <div class="hero-card pending" id="heroCard">
+      <div class="hero-header">
+        <div class="hero-icon" id="heroIcon">🔑</div>
+        <div>
+          <h2 class="hero-title" id="heroTitle">Shizuku Authorization Needed</h2>
+          <p class="hero-desc" id="heroDesc">
+            Aapka Shizuku on hai! Bas Shizuku app me jakar Termux ko ON (Allow) kar dein taaki elevated ADB commands run ho sakein.
+          </p>
+        </div>
+      </div>
+
+      <!-- INSTRUCTIONS BOX -->
+      <div class="steps-box" id="stepsBox">
+        <div class="steps-title">
+          <span>⚡</span> Shizuku Me Permission Kaise Dein (Bas 10 Seconds):
+        </div>
+        <ol class="steps-list">
+          <li>
+            <span class="step-num">1</span>
+            <span>Apne phone me <b>Shizuku App</b> open karein.</span>
+          </li>
+          <li>
+            <span class="step-num">2</span>
+            <span><b>"Authorized Applications"</b> (प्रमाणित एप्लिकेशन) par tap karein.</span>
+          </li>
+          <li>
+            <span class="step-num">3</span>
+            <span>List me <b>"Termux"</b> ka switch <b>ON (Allow)</b> kardein!</span>
+          </li>
+        </ol>
+        <div style="font-size: 0.76rem; color: var(--accent-green); margin-top: 4px;">
+          ✓ Jaise hi aap ON karenge, ye website bina reload kiye automatically <b>GREEN</b> ho jayegi!
+        </div>
+      </div>
+
+      <div class="hero-actions" id="heroActions">
+        <button class="btn btn-primary" onclick="requestPermission()">
+          <span>⚡</span> Request Shizuku Permission
+        </button>
+        <button class="btn btn-secondary" onclick="checkStatus(true)">
+          <span>🔄</span> Re-check Status
+        </button>
+      </div>
+    </div>
+
+    <!-- QUICK ACTIONS -->
+    <div>
+      <div class="section-title">
+        <span>⚡</span> Quick ADB Actions
+      </div>
+      <div class="quick-chips-grid">
+        <button class="chip-btn" onclick="runPredefined('getprop ro.product.manufacturer && getprop ro.product.model')">
+          <span class="icon">📱</span>
+          <span>Device Model</span>
+        </button>
+        <button class="chip-btn" onclick="runPredefined('dumpsys battery')">
+          <span class="icon">🔋</span>
+          <span>Battery Status</span>
+        </button>
+        <button class="chip-btn" onclick="runPredefined('pm list packages -3')">
+          <span class="icon">📦</span>
+          <span>User Apps (-3)</span>
+        </button>
+        <button class="chip-btn" onclick="runPredefined('wm size && wm density')">
+          <span class="icon">📐</span>
+          <span>Screen Res & DPI</span>
+        </button>
+        <button class="chip-btn" onclick="runPredefined('getprop ro.build.version.release && getprop ro.build.version.security_patch')">
+          <span class="icon">🤖</span>
+          <span>Android Version</span>
+        </button>
+        <button class="chip-btn" onclick="runPredefined('top -n 1 -b -m 8')">
+          <span class="icon">🚀</span>
+          <span>Top Processes</span>
+        </button>
+        <button class="chip-btn" onclick="runPredefined('ip -brief addr')">
+          <span class="icon">📶</span>
+          <span>Network Interfaces</span>
+        </button>
+        <button class="chip-btn" onclick="runPredefined('df -h /data')">
+          <span class="icon">💾</span>
+          <span>Internal Storage</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- TERMINAL CARD -->
+    <div class="terminal-card">
+      <div class="terminal-header">
+        <div class="terminal-controls">
+          <div class="terminal-dot dot-red"></div>
+          <div class="terminal-dot dot-yellow"></div>
+          <div class="terminal-dot dot-green"></div>
+        </div>
+        <div class="terminal-mode" id="termMode">
+          adb shell (uid=2000)
+        </div>
+        <div class="terminal-tools">
+          <button class="btn btn-secondary btn-sm" onclick="copyTerminal()">📋 Copy</button>
+          <button class="btn btn-secondary btn-sm" onclick="clearTerminal()">🗑️ Clear</button>
+        </div>
+      </div>
+
+      <div class="terminal-screen" id="terminalOutput">
+        <div class="term-line term-info">⚡ Shizuku Web Terminal Initialized.</div>
+        <div class="term-line term-info">🔍 Checking Shizuku service status...</div>
+      </div>
+
+      <div class="terminal-input-bar">
+        <div class="prompt-prefix">
+          <span id="promptUser">shell</span>@android:~$
+        </div>
+        <input 
+          type="text" 
+          id="cmdInput" 
+          class="cmd-input" 
+          placeholder="Enter ADB command (e.g. pm list packages, dumpsys battery, getprop)..." 
+          autocomplete="off" 
+          autocorrect="off" 
+          autocapitalize="off" 
+          spellcheck="false"
+        />
+        <button class="btn btn-primary btn-sm" id="runBtn" onclick="executeCurrentCommand()">
+          <span>Run</span> ↵
+        </button>
+      </div>
+    </div>
+
+    <footer>
+      Shizuku IPC Engine • Rootless Shell Privileges (UID 2000)
+    </footer>
+
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script>
+    // Server URL: defaults to current host or loopback 127.0.0.1:8080 if hosted online
+    const API_BASE = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+      ? ''
+      : 'http://127.0.0.1:8080';
+
+    let isAuthorized = false;
+    let cmdHistory = [];
+    let historyIndex = -1;
+
+    const statusBadge = document.getElementById('statusBadge');
+    const statusText = document.getElementById('statusText');
+    const heroCard = document.getElementById('heroCard');
+    const heroIcon = document.getElementById('heroIcon');
+    const heroTitle = document.getElementById('heroTitle');
+    const heroDesc = document.getElementById('heroDesc');
+    const stepsBox = document.getElementById('stepsBox');
+    const heroActions = document.getElementById('heroActions');
+    const terminalOutput = document.getElementById('terminalOutput');
+    const cmdInput = document.getElementById('cmdInput');
+    const runBtn = document.getElementById('runBtn');
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.style.display = 'block';
+      setTimeout(() => { toast.style.display = 'none'; }, 4000);
+    }
+
+    function appendTerminalLine(text, type = 'normal') {
+      const line = document.createElement('div');
+      line.className = 'term-line ' + (type ? 'term-' + type : '');
+      line.textContent = text;
+      terminalOutput.appendChild(line);
+      terminalOutput.scrollTop = terminalOutput.scrollHeight;
+    }
+
+    function clearTerminal() {
+      terminalOutput.innerHTML = '';
+      appendTerminalLine('⚡ Terminal cleared.', 'info');
+    }
+
+    function copyTerminal() {
+      const text = terminalOutput.innerText;
+      navigator.clipboard.writeText(text).then(() => {
+        showToast('Output copied to clipboard! 📋');
+      }).catch(() => {
+        showToast('Failed to copy');
+      });
+    }
+
+    // CHECK SHIZUKU STATUS
+    async function checkStatus(manual = false) {
+      try {
+        const res = await fetch(`${API_BASE}/api/status`);
+        const data = await res.json();
+        
+        if (data.status && data.status.authorized) {
+          if (!isAuthorized) onAuthorized(data.status.uid);
+        } else {
+          onPending(data.status ? data.status.error : 'Permission needed');
+          if (manual) showToast('Shizuku app me jakar Termux ko ON karein');
+        }
+      } catch (err) {
+        statusBadge.className = 'status-badge offline';
+        statusText.textContent = 'Bridge Offline';
+      }
+    }
+
+    function onAuthorized(uid) {
+      isAuthorized = true;
+      statusBadge.className = 'status-badge authorized';
+      statusText.textContent = 'Shizuku ADB Active';
+      
+      heroCard.className = 'hero-card authorized';
+      heroIcon.textContent = '🟢';
+      heroTitle.textContent = 'Shizuku ADB Shell Ready!';
+      heroDesc.textContent = `Elevated connection established (${uid || 'uid=2000 shell'}). All ADB commands are ready to execute directly below!`;
+      stepsBox.style.display = 'none';
+
+      heroActions.innerHTML = `
+        <button class="btn btn-primary" onclick="runPredefined('getprop ro.product.model')">
+          <span>⚡</span> Test Quick Command
+        </button>
+        <button class="btn btn-secondary" onclick="checkStatus(true)">
+          <span>🔄</span> Refresh Status
+        </button>
+      `;
+
+      appendTerminalLine(`🟢 Shizuku connection established! [${uid || 'uid=2000(shell)'}]`, 'success');
+      appendTerminalLine('Ready for commands! Type below or tap any quick action.', 'info');
+    }
+
+    function onPending(errMsg) {
+      isAuthorized = false;
+      statusBadge.className = 'status-badge pending';
+      statusText.textContent = 'Permission Required';
+
+      heroCard.className = 'hero-card pending';
+      heroIcon.textContent = '🔑';
+      heroTitle.textContent = 'Shizuku Authorization Needed';
+      heroDesc.textContent = 'Aapka Shizuku on hai! Bas Shizuku app me jakar "Authorized Applications" me Termux ko ON (Allow) kar dein.';
+      stepsBox.style.display = 'flex';
+
+      heroActions.innerHTML = `
+        <button class="btn btn-primary" onclick="requestPermission()">
+          <span>⚡</span> Request Shizuku Permission
+        </button>
+        <button class="btn btn-secondary" onclick="checkStatus(true)">
+          <span>🔄</span> Re-check Status
+        </button>
+      `;
+    }
+
+    // REQUEST PERMISSION TRIGGER
+    async function requestPermission() {
+      appendTerminalLine('⚡ Sending Shizuku Binder permission trigger...', 'info');
+      appendTerminalLine('👉 Shizuku App open karke "Authorized Applications" me Termux ko ON karein!', 'info');
+      showToast('Opening Shizuku... Termux ko ON karein!');
+
+      try {
+        await fetch(`${API_BASE}/api/request-permission`, { method: 'POST' });
+      } catch (e) {}
+
+      // Fast-poll every 1.2s for 15s
+      let count = 0;
+      const poll = setInterval(async () => {
+        count++;
+        await checkStatus();
+        if (isAuthorized || count > 12) clearInterval(poll);
+      }, 1200);
+    }
+
+    // EXECUTE COMMAND
+    async function executeCommand(cmd) {
+      if (!cmd || !cmd.trim()) return;
+
+      const trimmed = cmd.trim();
+      cmdHistory.push(trimmed);
+      historyIndex = cmdHistory.length;
+
+      appendTerminalLine(`$ ${trimmed}`, 'cmd');
+      runBtn.disabled = true;
+      runBtn.textContent = 'Running...';
+
+      try {
+        const res = await fetch(`${API_BASE}/api/exec`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ command: trimmed })
+        });
+        const data = await res.json();
+
+        if (data.stdout && data.stdout.trim()) {
+          appendTerminalLine(data.stdout.trimEnd());
+        }
+        if (data.stderr && data.stderr.trim()) {
+          appendTerminalLine(data.stderr.trimEnd(), 'error');
+        }
+
+        const time = data.timeMs !== undefined ? `[${data.timeMs}ms]` : '';
+        if (data.success) {
+          appendTerminalLine(`✓ Exit 0 [Shizuku Shell] ${time}`, 'success');
+        } else {
+          appendTerminalLine(`✗ Exit ${data.exitCode} [Shizuku Shell] ${time}`, 'error');
+        }
+      } catch (e) {
+        appendTerminalLine(`❌ Network error: ${e.message}`, 'error');
+      } finally {
+        runBtn.disabled = false;
+        runBtn.innerHTML = '<span>Run</span> ↵';
+        cmdInput.value = '';
+        cmdInput.focus();
+      }
+    }
+
+    function executeCurrentCommand() {
+      const val = cmdInput.value;
+      if (val) executeCommand(val);
+    }
+
+    function runPredefined(cmd) {
+      cmdInput.value = cmd;
+      executeCommand(cmd);
+    }
+
+    // KEYBOARD NAVIGATION
+    cmdInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        executeCurrentCommand();
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (cmdHistory.length > 0) {
+          if (historyIndex > 0) historyIndex--;
+          cmdInput.value = cmdHistory[historyIndex] || '';
+        }
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (cmdHistory.length > 0) {
+          if (historyIndex < cmdHistory.length - 1) {
+            historyIndex++;
+            cmdInput.value = cmdHistory[historyIndex] || '';
+          } else {
+            historyIndex = cmdHistory.length;
+            cmdInput.value = '';
+          }
+        }
+      }
+    });
+
+    // Auto status poll every 2 seconds
+    setInterval(checkStatus, 2000);
+    checkStatus();
+  </script>
+</body>
+</html>
